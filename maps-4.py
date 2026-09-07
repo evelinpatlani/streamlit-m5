@@ -1,78 +1,62 @@
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import numpy as np
 
-DATA_URL = 'uber-raw-data-sep14.csv'
-DATE_COLUMN = 'Date/Time'
-
-# Configuración de la página para que use todo el ancho (opcional pero recomendado para dashboards)
-st.set_page_config(layout="wide")
+# CORRECCIÓN: URL oficial estática de GitHub para leer archivos crudos
+DATA_URL = 'https://raw.githubusercontent.com/evelinpatlani/Dataset_CreditCard/main/creditcard.zip'
 
 @st.cache_data
 def load_data(number_rows):
-    data = pd.read_csv(DATA_URL, nrows=number_rows)
-    lowercase = lambda x: str(x).lower()
-    data[DATE_COLUMN] = pd.to_datetime(data[DATE_COLUMN])
-    data.rename(lowercase, axis='columns', inplace=True)
+    # Pandas descargará el zip y leerá el CSV interno
+    data = pd.read_csv(DATA_URL, compression='zip', nrows=number_rows)
     return data
 
-st.title('Análisis de Datos de Uber - NY')
+st.set_page_config(layout="wide")
+st.title('Análisis de Transacciones - Tarjetas de Crédito')
 
-# Cargar datos
-data = load_data(1000) 
+try:
+    # Cargamos más filas para que las gráficas tengan sentido estadístico
+    data = load_data(10000) 
 
-# --- SECCIÓN 1: DATOS Y MAPA ---
-col1, col2 = st.columns(2)
+    st.subheader('Datos Crudos (Muestra)')
+    st.dataframe(data.head(100))
 
-with col1:
-    st.subheader('Datos Crudos (1000 filas)')
-    st.dataframe(data, height=400)
+    st.markdown("---")
 
-with col2:
-    st.subheader('Mapa de Viajes')
-    st.map(data)
-
-st.markdown("---") # Línea divisoria
-
-# --- SECCIÓN 2: GRÁFICAS DE MATPLOTLIB ---
-st.header('Análisis Temporal')
-
-# Crear 3 columnas para las gráficas
-g_col1, g_col2, g_col3 = st.columns(3)
-
-# 1. Gráfica: Viajes por Hora
-with g_col1:
-    st.subheader('Por Hora')
-    hist_hour = np.histogram(data['date/time'].dt.hour, bins=24, range=(0, 24))[0]
+    # --- FASE 2: GRÁFICAS DE MATPLOTLIB ---
+    st.header('Visualizaciones de los Datos')
     
-    fig_hour, ax_hour = plt.subplots(figsize=(6, 4))
-    ax_hour.bar(range(24), hist_hour, color='steelblue')
-    ax_hour.set_xlabel('Hora')
-    ax_hour.set_ylabel('Viajes')
-    st.pyplot(fig_hour)
+    col1, col2 = st.columns(2)
 
-# 2. Gráfica: Viajes por Día de la Semana
-with g_col2:
-    st.subheader('Por Día de la Semana')
-    # dayofweek devuelve 0 (Lunes) a 6 (Domingo)
-    hist_day = np.histogram(data['date/time'].dt.dayofweek, bins=7, range=(-0.5, 6.5))[0]
-    dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
-    
-    fig_day, ax_day = plt.subplots(figsize=(6, 4))
-    ax_day.bar(dias, hist_day, color='seagreen')
-    ax_day.set_xlabel('Día')
-    ax_day.set_ylabel('Viajes')
-    st.pyplot(fig_day)
+    with col1:
+        st.subheader('Distribución de Transacciones')
+        # Verificamos que la columna 'Class' exista (0 = Normal, 1 = Fraude)
+        if 'Class' in data.columns:
+            fig1, ax1 = plt.subplots(figsize=(6, 4))
+            conteo_clases = data['Class'].value_counts()
+            
+            # Gráfica de barras
+            ax1.bar(['Normales (0)', 'Fraudes (1)'], conteo_clases.values, color=['seagreen', 'crimson'])
+            ax1.set_ylabel('Cantidad de Transacciones')
+            
+            st.pyplot(fig1)
+        else:
+            st.warning("No se encontró la columna 'Class' en el dataset.")
 
-# 3. Gráfica: Viajes por Minuto
-with g_col3:
-    st.subheader('Por Minuto')
-    hist_minute = np.histogram(data['date/time'].dt.minute, bins=60, range=(0, 60))[0]
-    
-    fig_minute, ax_minute = plt.subplots(figsize=(6, 4))
-    # Usamos plot en lugar de bar para ver la tendencia continua
-    ax_minute.plot(range(60), hist_minute, color='crimson')
-    ax_minute.set_xlabel('Minuto (0-59)')
-    ax_minute.set_ylabel('Viajes')
-    st.pyplot(fig_minute)
+    with col2:
+        st.subheader('Distribución de Montos (Amount)')
+        if 'Amount' in data.columns:
+            fig2, ax2 = plt.subplots(figsize=(6, 4))
+            
+            # Histograma de los montos
+            ax2.hist(data['Amount'], bins=30, color='steelblue', edgecolor='black')
+            ax2.set_xlabel('Monto de la Transacción ($)')
+            ax2.set_ylabel('Frecuencia')
+            
+            st.pyplot(fig2)
+        else:
+            st.warning("No se encontró la columna 'Amount' en el dataset.")
+
+except Exception as e:
+    st.error(f"Hubo un error al intentar descargar o leer los datos: {e}")
+    st.info("Verifica que el repositorio sea público y que el archivo creditcard.zip exista en la rama 'main'.")
