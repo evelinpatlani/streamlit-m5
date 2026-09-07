@@ -2,7 +2,7 @@ streamlit
 altair
 pandas
 numpy
-# matplotlib
+matplotlib
 seaborn
 plotly
 # tensorflow
