@@ -6,6 +6,9 @@ import numpy as np
 DATA_URL = 'uber-raw-data-sep14.csv'
 DATE_COLUMN = 'Date/Time'
 
+# Configuración de la página para que use todo el ancho (opcional pero recomendado para dashboards)
+st.set_page_config(layout="wide")
+
 @st.cache_data
 def load_data(number_rows):
     data = pd.read_csv(DATA_URL, nrows=number_rows)
@@ -14,32 +17,62 @@ def load_data(number_rows):
     data.rename(lowercase, axis='columns', inplace=True)
     return data
 
-# Título de la aplicación
-st.title('Análisis de Datos de Uber')
+st.title('Análisis de Datos de Uber - NY')
 
-# 1. Cargar y mostrar los datos crudos
-st.subheader('Datos Crudos (1000 filas)')
+# Cargar datos
 data = load_data(1000) 
-st.dataframe(data)
 
-# 2. Mostrar el mapa
-st.subheader('Mapa de Viajes')
-st.map(data)
+# --- SECCIÓN 1: DATOS Y MAPA ---
+col1, col2 = st.columns(2)
 
-# 3. Crear y mostrar la gráfica con Matplotlib
-st.subheader('Número de viajes por hora')
+with col1:
+    st.subheader('Datos Crudos (1000 filas)')
+    st.dataframe(data, height=400)
 
-# Extraer la hora de la columna de fecha (que ahora se llama 'date/time' por el lowercase)
-# Utilizamos numpy para hacer un histograma rápido de 24 rangos (uno por hora)
-hist_values = np.histogram(data['date/time'].dt.hour, bins=24, range=(0, 24))[0]
+with col2:
+    st.subheader('Mapa de Viajes')
+    st.map(data)
 
-# Crear la figura y el eje de Matplotlib (Forma estricta y segura para web)
-fig, ax = plt.subplots(figsize=(10, 4))
-ax.bar(range(24), hist_values, color='steelblue')
-ax.set_xlabel('Hora del día')
-ax.set_ylabel('Cantidad de viajes')
-ax.set_title('Viajes por Hora')
-ax.set_xticks(range(0, 24))
+st.markdown("---") # Línea divisoria
 
-# Pasar la figura de Matplotlib a Streamlit
-st.pyplot(fig)
+# --- SECCIÓN 2: GRÁFICAS DE MATPLOTLIB ---
+st.header('Análisis Temporal')
+
+# Crear 3 columnas para las gráficas
+g_col1, g_col2, g_col3 = st.columns(3)
+
+# 1. Gráfica: Viajes por Hora
+with g_col1:
+    st.subheader('Por Hora')
+    hist_hour = np.histogram(data['date/time'].dt.hour, bins=24, range=(0, 24))[0]
+    
+    fig_hour, ax_hour = plt.subplots(figsize=(6, 4))
+    ax_hour.bar(range(24), hist_hour, color='steelblue')
+    ax_hour.set_xlabel('Hora')
+    ax_hour.set_ylabel('Viajes')
+    st.pyplot(fig_hour)
+
+# 2. Gráfica: Viajes por Día de la Semana
+with g_col2:
+    st.subheader('Por Día de la Semana')
+    # dayofweek devuelve 0 (Lunes) a 6 (Domingo)
+    hist_day = np.histogram(data['date/time'].dt.dayofweek, bins=7, range=(-0.5, 6.5))[0]
+    dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+    
+    fig_day, ax_day = plt.subplots(figsize=(6, 4))
+    ax_day.bar(dias, hist_day, color='seagreen')
+    ax_day.set_xlabel('Día')
+    ax_day.set_ylabel('Viajes')
+    st.pyplot(fig_day)
+
+# 3. Gráfica: Viajes por Minuto
+with g_col3:
+    st.subheader('Por Minuto')
+    hist_minute = np.histogram(data['date/time'].dt.minute, bins=60, range=(0, 60))[0]
+    
+    fig_minute, ax_minute = plt.subplots(figsize=(6, 4))
+    # Usamos plot en lugar de bar para ver la tendencia continua
+    ax_minute.plot(range(60), hist_minute, color='crimson')
+    ax_minute.set_xlabel('Minuto (0-59)')
+    ax_minute.set_ylabel('Viajes')
+    st.pyplot(fig_minute)
